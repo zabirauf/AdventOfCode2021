@@ -7,6 +7,9 @@ using InteractiveUtils
 # ╔═╡ ca4cae83-57ff-47a1-83df-b5db7b3342ff
 using PlutoUI
 
+# ╔═╡ 9aa63a2d-7a74-4aca-bc6a-ce9e793bbff6
+using BenchmarkTools
+
 # ╔═╡ 1b10d8d0-53f3-11ec-1644-2d224b0bf81b
 md"""
 # Problem 1
@@ -96,7 +99,7 @@ end
 	
 
 # ╔═╡ 78617f4c-067f-4b5a-b34c-e565aad1c19d
-open("./Day3/prob_1_input.txt") do io
+@benchmark open("./Day3/prob_1_input.txt") do io
 	with_terminal() do
 		@time bin_arr = [collect.(line) |> x-> parse.(Int8, x) for line in eachline(io)]
 
@@ -109,12 +112,71 @@ end
 # ╔═╡ f44c2613-4423-4ece-8a55-4cc37797b674
 5410338
 
+# ╔═╡ 39f9031b-5e80-47cf-b1e8-a329f91f5bdc
+md"""
+# Problem 2 _(Optimized)_
+"""
+
+# ╔═╡ 250e8c67-ef60-4efc-a869-0c1606225601
+function parse_submarine_vitals_optim(bin_arr::Vector{Vector{Int8}})
+	mx_bin_arr = hcat(bin_arr...)
+	length_bin_arr = length(bin_arr)
+	bits = length(bin_arr[1])
+	isone_with_index(tup) = isone(first(tup))
+
+	function find_val(f)
+		vitalArr = 1:length_bin_arr
+		for bit_num in 1:bits
+			if (length(vitalArr) > 1)
+				correspondingVals = zip(mx_bin_arr[bit_num, vitalArr], vitalArr) |> collect
+				indexesWithOnes = filter(isone_with_index, correspondingVals) .|> last
+				bitCountOnes = length(indexesWithOnes)
+				bitCountZeros = length(vitalArr) - bitCountOnes
+				vitalArr = filter(
+					f(indexesWithOnes, bitCountOnes, bitCountZeros), 
+					vitalArr)
+			else
+				break
+			end
+		end
+
+		return bin_arr[vitalArr[1]] |> join |> b -> parse(Int, b, base=2)
+	end
+
+	oxygen = find_val(
+		(indexesWithOnes, bitCountOnes, bitCountZeros) -> 
+			bitCountOnes >= bitCountZeros
+				? b -> b ∈ indexesWithOnes
+				: b -> b ∉ indexesWithOnes)
+	co2 = find_val(
+		(indexesWithOnes, bitCountOnes, bitCountZeros) -> 
+			bitCountZeros <= bitCountOnes
+				? b -> b ∉ indexesWithOnes
+				: b -> b ∈ indexesWithOnes)
+
+	return oxygen, co2
+	
+end
+
+# ╔═╡ 153f2cc2-2dac-4770-b040-76b29bd641b0
+@benchmark open("./Day3/prob_1_input.txt") do io
+	with_terminal() do
+		@time bin_arr = [collect.(line) |> x-> parse.(Int8, x) for line in eachline(io)]
+
+		@time (oxygen, co2) = parse_submarine_vitals_optim(bin_arr)
+		#oxygen * co2
+	end
+	
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
+BenchmarkTools = "~1.2.0"
 PlutoUI = "~0.7.21"
 """
 
@@ -136,6 +198,12 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "61adeb0823084487000600ef8b1c00cc2474cd47"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.2.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -191,6 +259,10 @@ uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
 [[Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
+[[LinearAlgebra]]
+deps = ["Libdl"]
+uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
@@ -231,6 +303,10 @@ version = "0.7.21"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
@@ -252,6 +328,14 @@ uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
+
+[[SparseArrays]]
+deps = ["LinearAlgebra", "Random"]
+uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[[Statistics]]
+deps = ["LinearAlgebra", "SparseArrays"]
+uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[TOML]]
 deps = ["Dates"]
@@ -287,6 +371,7 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 
 # ╔═╡ Cell order:
 # ╠═ca4cae83-57ff-47a1-83df-b5db7b3342ff
+# ╠═9aa63a2d-7a74-4aca-bc6a-ce9e793bbff6
 # ╟─1b10d8d0-53f3-11ec-1644-2d224b0bf81b
 # ╠═ef81936e-6db7-4b90-b410-0d9bcccdfa11
 # ╠═89c3ff6c-ce98-43a9-9cd9-da116ed6c281
@@ -295,5 +380,8 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═9c7eba44-5804-4486-987c-0a51506dc52d
 # ╠═78617f4c-067f-4b5a-b34c-e565aad1c19d
 # ╠═f44c2613-4423-4ece-8a55-4cc37797b674
+# ╟─39f9031b-5e80-47cf-b1e8-a329f91f5bdc
+# ╠═250e8c67-ef60-4efc-a869-0c1606225601
+# ╠═153f2cc2-2dac-4770-b040-76b29bd641b0
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
