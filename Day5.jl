@@ -4,128 +4,94 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ a1ec9ca6-f727-41ba-a40b-90d02cadffcc
+# ╔═╡ b3a0a793-4d54-415b-ab61-9f6f01c81d15
 using PlutoUI
 
-# ╔═╡ c97eea3d-7973-4259-ae7b-602b6845f8d6
-using BenchmarkTools
-
-# ╔═╡ 12e140b2-3d6a-4cff-aaed-88acc4127688
-function parse_board_line(nums)
-	return getindex.(nums, [i:i+1 for i in 1:3:14]) .|> n -> parse(Int8, n)
+# ╔═╡ 536d9246-6163-49ec-9094-03e87230dd49
+function parse_line(line)
+	return (split(line, " -> ") 
+			.|> x -> split(x, ",") 
+			.|> n -> parse(Int16, n))
 end
 
-# ╔═╡ 62491476-3bb5-4cb4-9e79-a583b245a8d3
-function parse_file(lines; square_matrix_size = 5)
-	choosen_numbers = split(lines[1], ",") .|> n -> parse(Int8, n)
-	board_line_ranges = [i:i+4 for i in 3:6:length(lines)]
+# ╔═╡ 6d7a2a45-cc0b-4270-9f24-907c4400c163
+function points_in_between(p1, p2)
+	x1, y1 = p1[1], p1[2]
+	x2, y2 = p2[1], p2[2]
 
-	function create_matrix(board_line_range)
-		return (lines[board_line_range]
-			.|> parse_board_line
-			|> x -> hcat(x...)')
+	if x1 == x2
+		return y1 < y2 ? tuple.(x1, y1:y2) : tuple.(x1, y2:y1)
+	elseif y1 == y2
+		return x1 < x2 ? tuple.(x1:x2, y1) : tuple.(x2:x1, y1)
+	else
+		# Its a diagonal, solves #Problem 2
+		xrange = x1:(x1 < x2 ? 1 : -1):x2
+		yrange = y1:(y1 < y2 ? 1 : -1):y2
+		return tuple.(xrange, yrange)
 	end
-
-	return (choosen_numbers, create_matrix.(board_line_ranges))
 end
-	
 
-# ╔═╡ 7d1e46b6-54c7-11ec-368e-f75897fc5485
+# ╔═╡ 099f84bc-5587-11ec-3c0c-515a4b5ec3f8
 md"""
 # Problem 1
 """
 
-# ╔═╡ 9cb9f0a4-99eb-465a-881b-e1b35f312c83
-function isbingo(board)
-	rows, cols = size(board)
-	for r in 1:rows
-		if (@views all(board[r,:] .== -1))
-			return true
-		end
-	end
+# ╔═╡ a004d979-8888-4703-92f0-132c4a098537
+function is_horizontal_or_vertical(locs)
+	p1, p2 = locs[1], locs[2]
 
-	for c in 1:cols
-		if (@views all(board[:, c] .== -1))
-			return true
-		end
-	end
-
-	return false
-end
-	
-
-# ╔═╡ f6cc7b2f-f0b1-409f-9282-efb434e958fa
-function simulate_bingo_games!(nums, boards)
-	for num in nums
-		(boards
-			.|> b -> b[b .== num] .= -1)
-		won_bingo = findall(isbingo, boards)
-
-		if (length(won_bingo) >= 1)
-			return num, boards[won_bingo][1]
-		end
-	end
-
+	return p1[1] == p2[1] || p1[2] == p2[2]
 end
 
-# ╔═╡ 4572320a-de29-49ca-a642-10f422e2bb69
- open("./Day4/prob_input.txt") do io
+# ╔═╡ 9175ece1-88d6-4a82-b1cd-6581c2200ed8
+function get_dangerous_areas(vents_locs; LW = 1000)
+	vent_points = zeros(Int16, LW*LW)
 
-	 with_terminal() do
-		lines = [line for line in eachline(io)]
-		nums, boards = parse_file(lines)
-		num, winning_board = simulate_bingo_games!(nums, boards)
-		winning_board[winning_board .== -1] .= 0
-		num * sum(vcat(winning_board...))
-	 end
+	# Removed dict as it was taking upto 1.0M allocation and 30 MiB.
+	# With array its taking only 2K allocation and 5.2 MiB
+	# vent_points = Dict()
+
+	function update_point_value!(p)
+		key = p[2] * LW + p[1]
+		vent_points[key] += 1
+	end
+
+	for locs in vents_locs
+		(points_in_between(locs[1], locs[2])
+		.|> update_point_value!)
+	end
+
+	return count(n -> n >= 2, values(vent_points))
 end
 
-# ╔═╡ 8f134a84-1388-4d15-9dc8-b51131459f38
+# ╔═╡ 16eb2346-8fec-4476-b472-86a12752cddb
+with_terminal() do
+	open("./Day5/prob_input.txt") do io
+		 vents_locs = [parse_line(line) for line in eachline(io)]
+		 vents_locs = filter(is_horizontal_or_vertical, vents_locs)
+		 @time get_dangerous_areas(vents_locs)
+	end
+end
+
+# ╔═╡ c6f0dabb-c884-407f-ae11-f422fbd5ee8b
 md"""
 # Problem 2
 """
 
-# ╔═╡ bb3821de-7fa9-49aa-8e5e-eb106a7726d8
-function simulate_bingo_games_to_end!(nums, boards)
-	remaining_boards = length(boards)
-	for num in nums
-		(boards
-			.|> b -> b[b .== num] .= -1)
-		won_bingo = findall(isbingo, boards)
-		remaining_boards -= length(won_bingo)
-
-		updated_boards = filter(bi -> bi ∉ won_bingo, eachindex(boards))
-
-		if (remaining_boards == 0)
-			return num, boards[won_bingo][1]
-		end
-
-		boards = boards[updated_boards]
+# ╔═╡ 99268d0a-c421-4ed0-8d9f-5f132e2feb8a
+with_terminal() do
+	open("./Day5/prob_input.txt") do io
+		 vents_locs = [parse_line(line) for line in eachline(io)]
+		 @time get_dangerous_areas(vents_locs)
 	end
-
-end
-
-# ╔═╡ c6372434-e3d6-47b7-b061-7094e5a87c93
- open("./Day4/prob_input.txt") do io
-
-	 with_terminal() do
-		lines = [line for line in eachline(io)]
-		nums, boards = parse_file(lines)
-		@time num, winning_board = simulate_bingo_games_to_end!(nums, boards)
-		
-		winning_board[winning_board .== -1] .= 0
-		num * sum(vcat(winning_board...))
-	 end
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-BenchmarkTools = "~1.2.0"
 PlutoUI = "~0.7.21"
 """
 
@@ -147,12 +113,6 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
-
-[[BenchmarkTools]]
-deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "61adeb0823084487000600ef8b1c00cc2474cd47"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.2.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -208,10 +168,6 @@ uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
 [[Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
-[[LinearAlgebra]]
-deps = ["Libdl"]
-uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
@@ -252,10 +208,6 @@ version = "0.7.21"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
-[[Profile]]
-deps = ["Printf"]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
-
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
@@ -277,14 +229,6 @@ uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
-
-[[SparseArrays]]
-deps = ["LinearAlgebra", "Random"]
-uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[Statistics]]
-deps = ["LinearAlgebra", "SparseArrays"]
-uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[TOML]]
 deps = ["Dates"]
@@ -319,16 +263,14 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 """
 
 # ╔═╡ Cell order:
-# ╠═a1ec9ca6-f727-41ba-a40b-90d02cadffcc
-# ╠═c97eea3d-7973-4259-ae7b-602b6845f8d6
-# ╟─12e140b2-3d6a-4cff-aaed-88acc4127688
-# ╟─62491476-3bb5-4cb4-9e79-a583b245a8d3
-# ╟─7d1e46b6-54c7-11ec-368e-f75897fc5485
-# ╠═9cb9f0a4-99eb-465a-881b-e1b35f312c83
-# ╠═f6cc7b2f-f0b1-409f-9282-efb434e958fa
-# ╠═4572320a-de29-49ca-a642-10f422e2bb69
-# ╟─8f134a84-1388-4d15-9dc8-b51131459f38
-# ╠═bb3821de-7fa9-49aa-8e5e-eb106a7726d8
-# ╠═c6372434-e3d6-47b7-b061-7094e5a87c93
+# ╠═b3a0a793-4d54-415b-ab61-9f6f01c81d15
+# ╠═536d9246-6163-49ec-9094-03e87230dd49
+# ╠═6d7a2a45-cc0b-4270-9f24-907c4400c163
+# ╟─099f84bc-5587-11ec-3c0c-515a4b5ec3f8
+# ╠═a004d979-8888-4703-92f0-132c4a098537
+# ╠═9175ece1-88d6-4a82-b1cd-6581c2200ed8
+# ╠═16eb2346-8fec-4476-b472-86a12752cddb
+# ╟─c6f0dabb-c884-407f-ae11-f422fbd5ee8b
+# ╠═99268d0a-c421-4ed0-8d9f-5f132e2feb8a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
