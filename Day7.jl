@@ -4,87 +4,81 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ b3a0a793-4d54-415b-ab61-9f6f01c81d15
+# ╔═╡ b7cbaeb6-ed0a-4920-a823-a0e79f9125e9
 using PlutoUI
 
-# ╔═╡ 536d9246-6163-49ec-9094-03e87230dd49
-function parse_line(line)
-	return (split(line, " -> ") 
-			.|> x -> split(x, ",") 
-			.|> n -> parse(Int16, n))
+# ╔═╡ 94ffa04e-62f7-4d20-9e86-1bdbf7a0758c
+function parse_file(io::IO)
+	line = readline(io)
+	return split(line, ",") .|> n -> parse(Int16, n)
 end
 
-# ╔═╡ 6d7a2a45-cc0b-4270-9f24-907c4400c163
-function points_in_between(p1, p2)
-	x1, y1 = p1[1], p1[2]
-	x2, y2 = p2[1], p2[2]
-
-	if x1 == x2
-		return y1 < y2 ? tuple.(x1, y1:y2) : tuple.(x1, y2:y1)
-	elseif y1 == y2
-		return x1 < x2 ? tuple.(x1:x2, y1) : tuple.(x2:x1, y1)
-	else
-		# Its a diagonal, solves #Problem 2
-		xrange = x1:(x1 < x2 ? 1 : -1):x2
-		yrange = y1:(y1 < y2 ? 1 : -1):y2
-		return tuple.(xrange, yrange)
-	end
-end
-
-# ╔═╡ 099f84bc-5587-11ec-3c0c-515a4b5ec3f8
+# ╔═╡ c49b12de-571e-11ec-059a-69b9cc2326f9
 md"""
 # Problem 1
 """
 
-# ╔═╡ a004d979-8888-4703-92f0-132c4a098537
-function is_horizontal_or_vertical(locs)
-	p1, p2 = locs[1], locs[2]
+# ╔═╡ bdffc09c-f3e2-4cf3-947f-c40ab934df53
+function minimal_fuel_to_align(initial_state, cost_of_fuel)
+	(max_state,) = findmax(initial_state)
 
-	return p1[1] == p2[1] || p1[2] == p2[2]
-end
-
-# ╔═╡ 9175ece1-88d6-4a82-b1cd-6581c2200ed8
-function get_dangerous_areas(vents_locs; LW = 1000)
-	vent_points = zeros(Int16, LW*LW)
-
-	# Removed dict as it was taking upto 1.0M allocation and 30 MiB.
-	# With array its taking only 2K allocation and 5.2 MiB
-	# vent_points = Dict()
-
-	function update_point_value!(p)
-		key = p[2] * LW + p[1]
-		vent_points[key] += 1
+	# +1 due to one-off index
+	computed_state = zeros(Int64, max_state+1)
+	for pos in initial_state
+		# 1 one-off index
+		computed_state[pos+1] += 1
 	end
 
-	for locs in vents_locs
-		(points_in_between(locs[1], locs[2])
-		.|> update_point_value!)
+	function get_fuel_to_align(pos)
+		fuel_cost = 0
+		for (index, total_at_pos) in enumerate(computed_state)
+			actual_pos = index - 1
+			fuel_cost += cost_of_fuel(abs(actual_pos - pos)) * total_at_pos
+		end
+
+		return fuel_cost
 	end
 
-	return count(n -> n >= 2, values(vent_points))
+	current_min = typemax(Int64)
+	min_pos = 0
+	for pos in 0:max_state
+		fuel_to_align = get_fuel_to_align(pos)
+		if fuel_to_align < current_min
+			current_min = fuel_to_align
+			min_pos = pos
+		end
+	end
+
+	return current_min, min_pos
+
 end
 
-# ╔═╡ 16eb2346-8fec-4476-b472-86a12752cddb
+# ╔═╡ ef15a942-1844-4240-8c3c-aecae1dd2682
 with_terminal() do
-	open("./Day5/prob_input.txt") do io
-		 vents_locs = [parse_line(line) for line in eachline(io)]
-		 vents_locs = filter(is_horizontal_or_vertical, vents_locs)
-		 @time get_dangerous_areas(vents_locs)
+	open("./Day7/prob_input.txt") do io
+		initial_state = parse_file(io)
+		@time minimal_fuel_to_align(initial_state, x -> x)
 	end
 end
 
-# ╔═╡ c6f0dabb-c884-407f-ae11-f422fbd5ee8b
+# ╔═╡ 6bee0818-e646-4675-a646-973a355fa129
 md"""
 # Problem 2
 """
 
-# ╔═╡ 99268d0a-c421-4ed0-8d9f-5f132e2feb8a
+# ╔═╡ 6cbb0b8c-071d-4ba2-9caa-e08475799214
 with_terminal() do
-	open("./Day5/prob_input.txt") do io
-		 vents_locs = [parse_line(line) for line in eachline(io)]
-		 @time get_dangerous_areas(vents_locs)
+	open("./Day7/prob_input.txt") do io
+		initial_state = parse_file(io)
+		@time minimal_fuel_to_align(initial_state, x -> x == 0 ? 0 : Int(x/2 * (1+x)) )
 	end
 end
+
+# ╔═╡ 00dff10b-115a-42f7-881a-e076cee67171
+99053143, 504
+
+# ╔═╡ 1bef6779-211e-4283-b83d-a5413b1c98c2
+x(y) = y; a,b = x.([1,2]); a,b
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -263,14 +257,14 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 """
 
 # ╔═╡ Cell order:
-# ╠═b3a0a793-4d54-415b-ab61-9f6f01c81d15
-# ╠═536d9246-6163-49ec-9094-03e87230dd49
-# ╠═6d7a2a45-cc0b-4270-9f24-907c4400c163
-# ╟─099f84bc-5587-11ec-3c0c-515a4b5ec3f8
-# ╠═a004d979-8888-4703-92f0-132c4a098537
-# ╠═9175ece1-88d6-4a82-b1cd-6581c2200ed8
-# ╠═16eb2346-8fec-4476-b472-86a12752cddb
-# ╟─c6f0dabb-c884-407f-ae11-f422fbd5ee8b
-# ╠═99268d0a-c421-4ed0-8d9f-5f132e2feb8a
+# ╠═b7cbaeb6-ed0a-4920-a823-a0e79f9125e9
+# ╠═94ffa04e-62f7-4d20-9e86-1bdbf7a0758c
+# ╠═bdffc09c-f3e2-4cf3-947f-c40ab934df53
+# ╟─c49b12de-571e-11ec-059a-69b9cc2326f9
+# ╠═ef15a942-1844-4240-8c3c-aecae1dd2682
+# ╟─6bee0818-e646-4675-a646-973a355fa129
+# ╠═6cbb0b8c-071d-4ba2-9caa-e08475799214
+# ╠═00dff10b-115a-42f7-881a-e076cee67171
+# ╠═1bef6779-211e-4283-b83d-a5413b1c98c2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
