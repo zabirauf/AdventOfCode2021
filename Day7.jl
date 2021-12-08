@@ -13,11 +13,6 @@ function parse_file(io::IO)
 	return split(line, ",") .|> n -> parse(Int16, n)
 end
 
-# ╔═╡ c49b12de-571e-11ec-059a-69b9cc2326f9
-md"""
-# Problem 1
-"""
-
 # ╔═╡ bdffc09c-f3e2-4cf3-947f-c40ab934df53
 function minimal_fuel_to_align(initial_state, cost_of_fuel)
 	(max_state,) = findmax(initial_state)
@@ -52,6 +47,11 @@ function minimal_fuel_to_align(initial_state, cost_of_fuel)
 	return current_min, min_pos
 
 end
+
+# ╔═╡ c49b12de-571e-11ec-059a-69b9cc2326f9
+md"""
+# Problem 1
+"""
 
 # ╔═╡ ef15a942-1844-4240-8c3c-aecae1dd2682
 with_terminal() do
