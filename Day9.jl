@@ -76,16 +76,14 @@ md"""
 """
 
 # ╔═╡ 9d3ea07e-d6ba-4249-8fdc-cf0d66a512b6
-function find_basin_size(pos, data_size, floor_heights, explored)
-	(row, col) = pos
-	curr_val = floor_heights[row, col]
-
+# This is DFS
+function find_basin_size((row, col), data_size, floor_heights; explored=zeros(Bool, data_size...))
 	if explored[row, col] == true
 		return 0
-	else
-		explored[row, col] = true
 	end
-	
+
+	curr_val = floor_heights[row, col]
+	explored[row, col] = true
 	adjacent_indexes = filter(
 		function(pos)
 			(r, c) = pos
@@ -95,17 +93,27 @@ function find_basin_size(pos, data_size, floor_heights, explored)
 		end,
 		get_adjacent_indexes(row, col, data_size))
 
-	adj_basin_sizes = [find_basin_size(ai, data_size, floor_heights, explored) for ai in adjacent_indexes]
+	adj_basin_sizes = [
+		find_basin_size(ai, data_size, floor_heights; explored) 
+			for ai in adjacent_indexes]
 	return length(adj_basin_sizes) > 0 ? (sum(adj_basin_sizes) + 1) : 1
 end
 
-# ╔═╡ dfe6749a-def6-4229-8452-c69bd79c5625
-function find_basin_size(pos, data_size, floor_heights)
-	return find_basin_size(pos, data_size, floor_heights, zeros(Bool, data_size...))
+# ╔═╡ 4fe3fdec-4c85-4128-920a-ec74c5b654b9
+function find_basin_sizes_simple(floor_heights)
+	data_size = size(floor_heights)
+	(total_rows, total_cols) = data_size
+	return [find_basin_size((row, col), data_size, floor_heights) for col in 1:total_cols for row in 1:total_rows]
 end
 
+# ╔═╡ 5e937749-e810-44c0-9991-a5981602426b
+md"""
+The `find_basin_sizes_simple` is a basic Depth First Search so it makes for simpler code though its doesn't use memory efficiently. The reason is that we are exploring all the points and doing recursion at each point which consumes more memory due to maintaining call stack.
+Instead we can use the solution from previous problem and first find lowest_points and then do Depth First Search from that. 
+"""
+
 # ╔═╡ da5c275a-62e4-4217-81eb-abcc13943a65
-function find_basin_sizes(floor_heights)
+function find_basin_sizes_optim(floor_heights)
 	data_size = size(floor_heights)
 	(total_rows, total_cols) = data_size
 
@@ -125,7 +133,17 @@ end
 with_terminal() do
 	open("./Day9/prob_input.txt") do io
 		floor_heights = parse_file(io)
-		@time basin_sizes = find_basin_sizes(floor_heights) |> sort
+		@time basin_sizes = find_basin_sizes_simple(floor_heights) |> sort
+		reduce(*, basin_sizes[end-2:end])
+	end
+end
+
+# ╔═╡ b188c07b-36da-4c08-84ee-27c7434b4d30
+# Using optimized solution
+with_terminal() do
+	open("./Day9/prob_input.txt") do io
+		floor_heights = parse_file(io)
+		@time basin_sizes = find_basin_sizes_optim(floor_heights) |> sort
 		reduce(*, basin_sizes[end-2:end])
 	end
 end
@@ -317,8 +335,10 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═b8f6d8cd-4ddb-4a39-9de2-9c7519892a19
 # ╟─2f7ba442-c9cc-4840-9cbe-63ad0d179f62
 # ╠═9d3ea07e-d6ba-4249-8fdc-cf0d66a512b6
-# ╠═dfe6749a-def6-4229-8452-c69bd79c5625
+# ╠═4fe3fdec-4c85-4128-920a-ec74c5b654b9
+# ╟─5e937749-e810-44c0-9991-a5981602426b
 # ╠═da5c275a-62e4-4217-81eb-abcc13943a65
 # ╠═8924f1fc-3fbc-4e0e-870e-e5b2e129caad
+# ╠═b188c07b-36da-4c08-84ee-27c7434b4d30
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
