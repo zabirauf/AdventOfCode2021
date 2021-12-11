@@ -4,150 +4,148 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ f90ea9fd-d607-4e2d-8dc5-c3db88e79d8d
+# ╔═╡ acf93a06-f267-492d-a7e4-b7ef4d7d76e6
 begin
 	using PlutoUI
 	using DataStructures
 end
 
-# ╔═╡ 33391766-ca23-48f8-a20e-e08134fc74da
+# ╔═╡ 9b4b3db2-cafa-419c-bd4c-3a873d00ffc9
+function parse_line(line)
+	return split(line, "") .|> x -> parse(Int8, x)
+end
+
+# ╔═╡ 4204f48a-cd9a-4354-85d6-72e8fec2609f
 function parse_file(io::IO)
-	return [collect(line) for line in eachline(io)]
+	return hcat([parse_line(line) for line in eachline(io)]...)'
 end
 
-# ╔═╡ 474eaa7d-f432-493b-afcb-661e0077f08a
-is_starting_char(c) = c == '{' || c == '(' || c == '<' || c == '['
+# ╔═╡ f8da1464-6467-4985-a20b-a7f939c5c0ef
+function simulate_and_find_flash_count!(energy_levels)
+	flashed_state = similar(energy_levels, Bool)
+	flashed_state .= false
 
-# ╔═╡ 16efd634-55e4-47ef-817c-62143c811262
-is_ending_char(c) = c == '}' || c == ')' || c == '>' || c == ']'
+	tr, tc = size(energy_levels)
+	Ifirst, Ilast, Iunit = CartesianIndex(1,1), CartesianIndex(tr, tc), CartesianIndex(1, 1)
 
-# ╔═╡ 423d30d6-f130-4965-8fe5-eafad2ec80c8
-function is_corresponding_ending_char(open, close)
-	return ((open == '{' && close == '}')
-		|| (open == '(' && close == ')')
-		|| (open == '<' && close == '>')
-		|| (open == '[' && close == ']'))
-end
+	# Step 1: Increase everything by unit 1
+	energy_levels .+= 1
+	R = findall(n -> n >= 10, energy_levels)
+	queue = Queue{CartesianIndex}()
+	map(I -> enqueue!(queue, I), R)
+	energy_levels[R] .= 0
+	flashed_state[R] .= true
+	flash_count = length(R)
+	while length(queue) > 0
+		I = dequeue!(queue)
+		# Step 2: For the flashing ones increase adjacent by 1
+		for J in max(Ifirst, I-Iunit):min(Ilast, I+Iunit)
+			if J == I || flashed_state[J] == true
+				continue
+			end
 
-# ╔═╡ 1a7c8d03-a329-4dc3-83b9-321e8e3f73b9
-function get_first_illegal_char(chars)
-	s = Stack{Char}()
-	for c in chars
-		if is_starting_char(c)
-			push!(s, c)
-		elseif length(s) == 0
-			return c
-		else
-			expected_starting_char = pop!(s)
-			if !is_corresponding_ending_char(expected_starting_char, c)
-				return c
+			energy_levels[J] += 1
+
+			# Step 3: If the adjacent also needs to flash then add them to queue
+			if energy_levels[J] >= 10
+				flash_count+=1
+				energy_levels[J] = 0
+				flashed_state[J] = true
+				enqueue!(queue, J)
 			end
 		end
 	end
-	return nothing
+
+	flash_count
 end
 
-# ╔═╡ 88a32fb0-5975-11ec-2425-c56f3e1c018d
+# ╔═╡ 2c8a36c2-5a53-11ec-0d8c-8fa39662cc35
 md"""
 # Problem 1
 """
 
-# ╔═╡ 043113a6-fbe2-4bac-9cc9-a2bd1e58b469
-prob1_score_map = Dict(')' => 3, ']' => 57, '}' => 1197, '>' => 25137)
-
-# ╔═╡ 918aada4-0b3b-4ad2-959d-6b32a1cebc4a
-function get_illegal_chars(lines)
-	return get_first_illegal_char.(lines) |> l -> filter(cs -> cs != nothing, l)
+# ╔═╡ c0665ceb-363e-48a6-b8cc-ece7deed4e1f
+function simulate_and_find_flash_counts!(energy_levels; steps = 100)
+	sum([simulate_and_find_flash_count!(energy_levels) for _ in 1:steps])
 end
 
-# ╔═╡ 8dc8cf89-3817-4920-94ef-9dacdd72e011
+# ╔═╡ f6a5bb96-1f2f-475b-bdb9-c8f410b87a73
 with_terminal() do
-	open("./Day10/prob_input.txt") do io
-		lines = parse_file(io)
-		@time illegal_chars = get_illegal_chars(lines)
-		map(c -> prob1_score_map[c], illegal_chars) |> sum
+	open("./Day11/prob_input.txt") do io
+		energy_levels = parse_file(io)
+		@time simulate_and_find_flash_counts!(energy_levels; steps=100), energy_levels
 	end
 end
 
-# ╔═╡ 904ce7bf-1c8c-4f26-813d-92a506c2f08f
+# ╔═╡ 2d26e9d7-3c9f-4104-ac53-e4ed10f17be9
 md"""
 # Problem 2
 """
 
-# ╔═╡ 520e4d32-4aea-4614-b6f8-e921ccff6e91
-prob2_score_map = Dict(')' => 1, ']' => 2, '}' => 3, '>' => 4)
+# ╔═╡ bf0fed46-6b19-47c2-985b-d729f82ac106
+function simulate_and_find_when_all_flash!(energy_levels; max_steps = 10_000)
 
-# ╔═╡ 0ecc2b6a-2523-4e79-8cce-7051baf36eb7
-function get_closing_char(c)
-	if c == '{'
-		return '}'
-	elseif c == '('
-		return ')'
-	elseif c == '<'
-		return '>'
-	elseif c == '['
-		return ']'
+	has_all_flashed = false
+	current_step = 0
+
+	while has_all_flashed == false && current_step <= max_steps
+		current_step += 1
+		simulate_and_find_flash_count!(energy_levels)
+
+		has_all_flashed = all(energy_levels .== 0)
 	end
 
-	error("Invalid char $(c)")
-end
-
-# ╔═╡ 770b7471-f521-4d5b-8e3f-2414f5c8aeed
-function get_legal_lines(lines)
-	illegal_lines = get_first_illegal_char.(lines)
-	legal_lines_index = findall(c -> c == nothing, illegal_lines)
-	lines[legal_lines_index]
-end
-
-# ╔═╡ 162d2a42-172b-4c76-a226-7fb3acf793a7
-function get_closing_chars_for_legal_line(chars)
-	s = Stack{Char}()
-	for c in chars
-		if is_starting_char(c)
-			push!(s, c)
-		else
-			# As we will only get legal lines so making that assumption
-			pop!(s)
-		end
+	if (current_step > max_steps)
+		error("Reached max number of steps :(")
 	end
 
-	return [get_closing_char(c) for c in s]
+	return current_step
 end
 
-# ╔═╡ 3b1bdf51-bb88-468b-9afc-f5d0c49c7d6c
-function get_score_for_line(closing_chars)
-	scores = map(c -> prob2_score_map[c], closing_chars)
-
-	score = 0
-	for s in scores
-		score = (score * 5) + s
-	end
-
-	return score
-end
-
-# ╔═╡ 209a1d4f-8584-433f-91bb-3f30a5835d26
-function get_median_score_for_completion(lines)
-	closing_chars_per_line = get_closing_chars_for_legal_line.(lines)
-	scores_per_line = get_score_for_line.(closing_chars_per_line)
-	sort!(scores_per_line)
-
-	mid_index = Int(floor(length(scores_per_line)/2)) + 1
-	return scores_per_line[mid_index]
-end
-
-
-# ╔═╡ 523e2145-3465-402f-a447-a2d388cf73c9
-2421222841
-
-# ╔═╡ 292b86ae-4952-4f55-a0f2-aa217a7b392d
+# ╔═╡ b4b78f2f-e612-49ef-8dcd-df035a992601
 with_terminal() do
-	open("./Day10/prob_input.txt") do io
-		lines = parse_file(io)
-		legal_lines = get_legal_lines(lines)
-		@time get_median_score_for_completion(legal_lines)
+	open("./Day11/prob_input.txt") do io
+		energy_levels = parse_file(io)
+		@time simulate_and_find_when_all_flash!(energy_levels), energy_levels
 	end
 end
+
+# ╔═╡ f0cb7c53-c228-430f-ac99-6306d81ef982
+md"""
+Though above solved the problem bu I want to to see if I can remove the extra step of checking all zeros after a step. As we get the flash_count afterwards so we can simply check if $$FlashCount = TotalRows \times TotalColumns$$.
+"""
+
+# ╔═╡ d544856c-bb85-453d-b601-583fdc6ce312
+function simulate_and_find_when_all_flash_optim!(energy_levels; max_steps = 10_000)
+
+	has_all_flashed = false
+	current_step = 0
+	tr, tc = size(energy_levels)
+
+	while has_all_flashed == false && current_step <= max_steps
+		current_step += 1
+		has_all_flashed = simulate_and_find_flash_count!(energy_levels) == tr*tc
+	end
+
+	if (current_step > max_steps)
+		error("Reached max number of steps :(")
+	end
+
+	return current_step
+end
+
+# ╔═╡ 5035ab78-1677-460b-b582-d31616ed9fd2
+with_terminal() do
+	open("./Day11/prob_input.txt") do io
+		energy_levels = parse_file(io)
+		@time simulate_and_find_when_all_flash_optim!(energy_levels), energy_levels
+	end
+end
+
+# ╔═╡ c4b2c1a6-2d87-4a8e-9733-6464f50fed2d
+md"""
+The perf gain isn't hugely difference but it did remove approx. **0.7k** memory usage
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -369,24 +367,19 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 """
 
 # ╔═╡ Cell order:
-# ╠═f90ea9fd-d607-4e2d-8dc5-c3db88e79d8d
-# ╠═33391766-ca23-48f8-a20e-e08134fc74da
-# ╠═474eaa7d-f432-493b-afcb-661e0077f08a
-# ╠═16efd634-55e4-47ef-817c-62143c811262
-# ╠═423d30d6-f130-4965-8fe5-eafad2ec80c8
-# ╠═1a7c8d03-a329-4dc3-83b9-321e8e3f73b9
-# ╟─88a32fb0-5975-11ec-2425-c56f3e1c018d
-# ╠═043113a6-fbe2-4bac-9cc9-a2bd1e58b469
-# ╠═918aada4-0b3b-4ad2-959d-6b32a1cebc4a
-# ╠═8dc8cf89-3817-4920-94ef-9dacdd72e011
-# ╟─904ce7bf-1c8c-4f26-813d-92a506c2f08f
-# ╠═520e4d32-4aea-4614-b6f8-e921ccff6e91
-# ╠═0ecc2b6a-2523-4e79-8cce-7051baf36eb7
-# ╠═770b7471-f521-4d5b-8e3f-2414f5c8aeed
-# ╠═162d2a42-172b-4c76-a226-7fb3acf793a7
-# ╠═3b1bdf51-bb88-468b-9afc-f5d0c49c7d6c
-# ╠═209a1d4f-8584-433f-91bb-3f30a5835d26
-# ╠═523e2145-3465-402f-a447-a2d388cf73c9
-# ╠═292b86ae-4952-4f55-a0f2-aa217a7b392d
+# ╠═acf93a06-f267-492d-a7e4-b7ef4d7d76e6
+# ╠═9b4b3db2-cafa-419c-bd4c-3a873d00ffc9
+# ╠═4204f48a-cd9a-4354-85d6-72e8fec2609f
+# ╠═f8da1464-6467-4985-a20b-a7f939c5c0ef
+# ╟─2c8a36c2-5a53-11ec-0d8c-8fa39662cc35
+# ╠═c0665ceb-363e-48a6-b8cc-ece7deed4e1f
+# ╠═f6a5bb96-1f2f-475b-bdb9-c8f410b87a73
+# ╟─2d26e9d7-3c9f-4104-ac53-e4ed10f17be9
+# ╠═bf0fed46-6b19-47c2-985b-d729f82ac106
+# ╠═b4b78f2f-e612-49ef-8dcd-df035a992601
+# ╟─f0cb7c53-c228-430f-ac99-6306d81ef982
+# ╠═d544856c-bb85-453d-b601-583fdc6ce312
+# ╠═5035ab78-1677-460b-b582-d31616ed9fd2
+# ╟─c4b2c1a6-2d87-4a8e-9733-6464f50fed2d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
