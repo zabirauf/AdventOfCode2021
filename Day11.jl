@@ -166,6 +166,9 @@ md"""
 #### Visualizing change
 """
 
+# ╔═╡ fbbb1b9a-bf8a-4509-bf92-8719619f3936
+md"Create simulation GIF? $(@bind create_gif CheckBox())"
+
 # ╔═╡ ee458c52-f584-4291-a35d-10dcc7310b92
 function create_energy_levels_img(energy_levels)
 	return map(function (n)
@@ -192,9 +195,6 @@ begin
 	end
 end
 
-# ╔═╡ fbbb1b9a-bf8a-4509-bf92-8719619f3936
-md"Create simulation GIF? $(@bind create_gif CheckBox())"
-
 # ╔═╡ a9842894-10a0-4088-9066-450692d736e4
 with_terminal() do
 	open("./Day11/prob_input.txt") do io
@@ -203,6 +203,8 @@ with_terminal() do
 		@time simulate_and_find_when_all_flash_optim!(energy_levels; energy_levels_history=energy_levels_history)
 
 		create_gif && create_exp_gif(energy_levels_history)
+
+		create_energy_levels_img.(energy_levels_history[1:10]), create_energy_levels_img.(energy_levels_history[end-9:end])
 	end
 end
 
@@ -1292,9 +1294,9 @@ version = "0.9.1+5"
 # ╟─c4b2c1a6-2d87-4a8e-9733-6464f50fed2d
 # ╟─04c7cffa-2b5c-4bda-a9e7-5213b202f4cf
 # ╠═a37cdf7f-8532-409b-9483-103336bf9d4f
-# ╠═ee458c52-f584-4291-a35d-10dcc7310b92
 # ╟─fbbb1b9a-bf8a-4509-bf92-8719619f3936
 # ╠═a9842894-10a0-4088-9066-450692d736e4
+# ╟─ee458c52-f584-4291-a35d-10dcc7310b92
 # ╟─7c9f3478-551c-43d7-b4a7-d8f8873acd95
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
