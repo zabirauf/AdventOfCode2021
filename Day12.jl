@@ -110,9 +110,6 @@ md"""
 # Problem 2
 """
 
-# ╔═╡ 54bda8f0-c8f1-4967-8eb5-a97e9ec3d547
-fib(n) = n <= 1 ? n : fib(n-1) + fib(n-2)
-
 # ╔═╡ dabf5a6a-e48c-46bc-83e0-0162cb6d4495
 md"""
 In this problem we have the option of visting **only one** small cave twice but all other small caves in the path should be visted once. The only exceptions are `"start"` and `"end"` state.
@@ -392,7 +389,6 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═a4c6c06f-bc65-4512-9a6d-b3357610682a
 # ╠═404e0e47-6c8a-4c6a-af82-2c47928853ad
 # ╟─d159a15e-f1c1-4310-be63-e62bbc0f8988
-# ╠═54bda8f0-c8f1-4967-8eb5-a97e9ec3d547
 # ╟─dabf5a6a-e48c-46bc-83e0-0162cb6d4495
 # ╠═4c3bf2f3-be86-410e-9b23-7b92ea7ecf63
 # ╠═66bcf1f5-e53b-445c-a6df-af857096f26d

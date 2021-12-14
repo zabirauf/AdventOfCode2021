@@ -14,180 +14,29 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ acf93a06-f267-492d-a7e4-b7ef4d7d76e6
+# ╔═╡ e5adc7b4-a132-45ea-9383-c400de711cff
+using PlutoUI
+
+# ╔═╡ 184104eb-1a42-4592-b0ff-f5acf1bccaf4
 begin
-	using PlutoUI
-	using DataStructures
-end
-
-# ╔═╡ a37cdf7f-8532-409b-9483-103336bf9d4f
-using Colors, ColorVectorSpace, ImageShow, ImageIO, Plots
-
-# ╔═╡ 9b4b3db2-cafa-419c-bd4c-3a873d00ffc9
-function parse_line(line)
-	return split(line, "") .|> x -> parse(Int8, x)
-end
-
-# ╔═╡ 4204f48a-cd9a-4354-85d6-72e8fec2609f
-function parse_file(io::IO)
-	return hcat([parse_line(line) for line in eachline(io)]...)'
-end
-
-# ╔═╡ f8da1464-6467-4985-a20b-a7f939c5c0ef
-function simulate_and_find_flash_count!(energy_levels)
-	flashed_state = similar(energy_levels, Bool)
-	flashed_state .= false
-
-	tr, tc = size(energy_levels)
-	Ifirst, Ilast, Iunit = CartesianIndex(1,1), CartesianIndex(tr, tc), CartesianIndex(1, 1)
-
-	# Step 1: Increase everything by unit 1
-	energy_levels .+= 1
-	R = findall(n -> n >= 10, energy_levels)
-	queue = Queue{CartesianIndex}()
-	map(I -> enqueue!(queue, I), R)
-	energy_levels[R] .= 0
-	flashed_state[R] .= true
-	flash_count = length(R)
-	while length(queue) > 0
-		I = dequeue!(queue)
-		# Step 2: For the flashing ones increase adjacent by 1
-		for J in max(Ifirst, I-Iunit):min(Ilast, I+Iunit)
-			if J == I || flashed_state[J] == true
-				continue
-			end
-
-			energy_levels[J] += 1
-
-			# Step 3: If the adjacent also needs to flash then add them to queue
-			if energy_levels[J] >= 10
-				flash_count+=1
-				energy_levels[J] = 0
-				flashed_state[J] = true
-				enqueue!(queue, J)
-			end
-		end
-	end
-
-	flash_count
-end
-
-# ╔═╡ 2c8a36c2-5a53-11ec-0d8c-8fa39662cc35
-md"""
-# Problem 1
-"""
-
-# ╔═╡ c0665ceb-363e-48a6-b8cc-ece7deed4e1f
-function simulate_and_find_flash_counts!(energy_levels; steps = 100)
-	sum([simulate_and_find_flash_count!(energy_levels) for _ in 1:steps])
-end
-
-# ╔═╡ f6a5bb96-1f2f-475b-bdb9-c8f410b87a73
-with_terminal() do
-	open("./Day11/prob_input.txt") do io
-		energy_levels = parse_file(io)
-		@time simulate_and_find_flash_counts!(energy_levels; steps=100), energy_levels
+	using Colors, ColorVectorSpace, ImageShow, ImageIO, Plots
+	function create_code_img(grid)
+		return map(function (n)
+			return n == true ? RGB(0) : RGB(0.8)
+		end, grid)
 	end
 end
 
-# ╔═╡ 2d26e9d7-3c9f-4104-ac53-e4ed10f17be9
-md"""
-# Problem 2
-"""
-
-# ╔═╡ bf0fed46-6b19-47c2-985b-d729f82ac106
-function simulate_and_find_when_all_flash!(energy_levels; max_steps = 10_000)
-
-	has_all_flashed = false
-	current_step = 0
-
-	while has_all_flashed == false && current_step <= max_steps
-		current_step += 1
-		simulate_and_find_flash_count!(energy_levels)
-
-		has_all_flashed = all(energy_levels .== 0)
-	end
-
-	if (current_step > max_steps)
-		error("Reached max number of steps :(")
-	end
-
-	return current_step
-end
-
-# ╔═╡ b4b78f2f-e612-49ef-8dcd-df035a992601
-with_terminal() do
-	open("./Day11/prob_input.txt") do io
-		energy_levels = parse_file(io)
-		@time simulate_and_find_when_all_flash!(energy_levels), energy_levels
-	end
-end
-
-# ╔═╡ f0cb7c53-c228-430f-ac99-6306d81ef982
-md"""
-Though above solved the problem bu I want to to see if I can remove the extra step of checking all zeros after a step. As we get the flash_count afterwards so we can simply check if $$FlashCount = TotalRows \times TotalColumns$$.
-"""
-
-# ╔═╡ d544856c-bb85-453d-b601-583fdc6ce312
-function simulate_and_find_when_all_flash_optim!(energy_levels; max_steps = 10_000, energy_levels_history = nothing)
-
-	has_all_flashed = false
-	current_step = 0
-	tr, tc = size(energy_levels)
-
-	while has_all_flashed == false && current_step <= max_steps
-		current_step += 1
-		has_all_flashed = simulate_and_find_flash_count!(energy_levels) == tr*tc
-		energy_levels_history != nothing && push!(energy_levels_history, copy(energy_levels))
-	end
-
-	if (current_step > max_steps)
-		error("Reached max number of steps :(")
-	end
-
-	return current_step
-end
-
-# ╔═╡ 5035ab78-1677-460b-b582-d31616ed9fd2
-with_terminal() do
-	open("./Day11/prob_input.txt") do io
-		energy_levels = parse_file(io)
-		@time simulate_and_find_when_all_flash_optim!(energy_levels), energy_levels
-	end
-end
-
-# ╔═╡ c4b2c1a6-2d87-4a8e-9733-6464f50fed2d
-md"""
-The perf gain isn't hugely difference but it did remove approx. **0.7k** memory usage
-"""
-
-# ╔═╡ 04c7cffa-2b5c-4bda-a9e7-5213b202f4cf
-md"""
-#### Visualizing change
-"""
-
-# ╔═╡ fbbb1b9a-bf8a-4509-bf92-8719619f3936
-md"Create simulation GIF? $(@bind create_gif CheckBox())"
-
-# ╔═╡ ee458c52-f584-4291-a35d-10dcc7310b92
-function create_energy_levels_img(energy_levels)
-	return map(function (n)
-		if n == 0
-			return RGB(0.9,0,0)
-		else
-			return RGB(0,n/10,n/10)
-		end
-	end, energy_levels)
-end
-
-# ╔═╡ 7c9f3478-551c-43d7-b4a7-d8f8873acd95
+# ╔═╡ 775b92e9-7677-4b07-b19a-17e940af3adc
 begin
 	using Reel
-	function create_exp_gif(mxs; name="day11_simulation")
+	function create_folding_gif(mxs, total_rows, total_cols; name="day13_folding")
 		mxs = cat(copy(mxs), [copy(mxs[end]) for _ in 1:20], dims=1)
-		sim_frames = Frames(MIME("image/png"), fps=15)
+		sim_frames = Frames(MIME("image/png"), fps=5)
 		for i in 1:length(mxs)
-			frame_i = create_energy_levels_img(mxs[i])
+			img_mxs = zeros(total_rows, total_cols)
+			img_mxs .= mxs[i]
+			frame_i = create_code_img(img_mxs)
 			push!(sim_frames, frame_i)
 		end
 		!isdir("gifs") && mkdir("gifs") # create "gifs" directory
@@ -195,25 +44,156 @@ begin
 	end
 end
 
-# ╔═╡ a9842894-10a0-4088-9066-450692d736e4
+# ╔═╡ d0aec327-eca8-4985-a014-104268fa98ae
+function parse_dot_line(line)
+	return split(line, ",") .|> n -> (parse(Int16, n)+1)
+end
+
+# ╔═╡ e499ef4d-200f-4a8a-a201-a95ff79ccdac
+@enum FoldType FoldHorizontal FoldVertical
+
+# ╔═╡ c64cd69d-3fb1-478e-92ec-293d38d9e628
+function parse_fold_line(line)
+	axis, point = match(r"^fold along ([x|y])=(\d+)", line).captures
+
+	# We don't do +1 here as the point of fold isn't included in that grid
+	return (axis == "x" ? FoldVertical : FoldHorizontal, parse(Int16, point))
+end
+
+# ╔═╡ c0c69e83-308d-4b7e-850a-bf7f0db20212
+function parse_file(io::IO)
+	is_fold_line(line) = startswith(line, "fold")
+
+	dot_coordinates = []
+	fold_instructions = []
+
+	for line in eachline(io)
+		if is_fold_line(line) == true
+			push!(fold_instructions, parse_fold_line(line))
+		elseif !isempty(line)
+			push!(dot_coordinates, parse_dot_line(line))
+		end
+	end
+
+	return (dot_coordinates, fold_instructions)
+end
+
+# ╔═╡ 275b7b30-b104-4ebe-9261-dfcfdec92c6c
+function fold_paper(fold_type, position, grid)
+	total_rows, total_cols = fold_type == FoldVertical ? 
+		(size(grid)[1], position) :
+		(position, size(grid)[2])
+	fold_dimension = fold_type == FoldVertical ? 2 : 1
+
+	lhs_grid = grid[1:total_rows, 1:total_cols]
+	rhs_grid = reverse(grid, dims=fold_dimension)[1:total_rows, 1:total_cols]
+	return lhs_grid .| rhs_grid
+end
+
+# ╔═╡ 9f2972eb-fc69-41a2-af55-9afc696ca092
+function fold_grid(grid, fold_instructions, on_fold = nothing)
+	running_grid = grid
+	for (fold_type, fold_position) in fold_instructions
+		updated_grid = fold_paper(fold_type, fold_position, running_grid)
+		on_fold != nothing && on_fold((fold_type, fold_position), copy(running_grid), copy(updated_grid))
+		running_grid = updated_grid
+	end
+
+	return count(x -> x==true, running_grid), running_grid
+end
+
+# ╔═╡ 7a21ecf0-5bd8-11ec-036f-690dbaf69de3
+md"""
+# Problem 1
+"""
+
+# ╔═╡ 8367f567-fb4a-4b21-9f41-879afe7ddb3e
 with_terminal() do
-	open("./Day11/prob_input.txt") do io
-		energy_levels = parse_file(io)
-		energy_levels_history = [copy(energy_levels)]
-		@time simulate_and_find_when_all_flash_optim!(energy_levels; energy_levels_history=energy_levels_history)
+	open("./Day13/prob_input.txt") do io
+		dot_coordinates, fold_instructions = parse_file(io)
+		total_rows, total_cols = maximum(x -> x[2], dot_coordinates), maximum(x -> x[1], dot_coordinates)
 
-		create_gif && create_exp_gif(energy_levels_history)
+		# Create initial grid
+		grid = zeros(Bool, total_rows, total_cols)
+		grid[map(x -> CartesianIndex(x[2], x[1]), dot_coordinates)] .= true
 
-		create_energy_levels_img.(energy_levels_history[1:10]), create_energy_levels_img.(energy_levels_history[end-9:end])
+		@time count, final_grid = fold_grid(grid, [fold_instructions[1]])
+		count
 	end
 end
+
+# ╔═╡ e2a7cae5-c4e7-4a35-881c-a1c2d2f290b9
+md"""
+# Problem 2
+"""
+
+# ╔═╡ ddff87e8-2b5d-4649-b677-35588d080039
+md"Create simulation GIF? $(@bind create_gif CheckBox())"
+
+# ╔═╡ 135f9ade-55d3-4e21-877d-9156dc28d4f1
+with_terminal() do
+	open("./Day13/prob_input.txt") do io
+		dot_coordinates, fold_instructions = parse_file(io)
+		total_rows, total_cols = maximum(x -> x[2], dot_coordinates), maximum(x -> x[1], dot_coordinates)
+
+		# Create initial grid
+		grid = zeros(Bool, total_rows, total_cols)
+		grid[map(x -> CartesianIndex(x[2], x[1]), dot_coordinates)] .= true
+
+		folding_history = []
+		fold_num = 1
+		function on_fold(fold_props, before, after)
+			push!(folding_history, after)
+			#write_grid_presentation_to_file("./Day13/intermediate_$(fold_num).txt", fold_props, before, after)
+			fold_num += 1
+		end
+		@time _, final_grid = fold_grid(grid, fold_instructions, on_fold)
+		
+		create_gif && create_folding_gif(folding_history, total_rows, total_cols)
+		create_code_img.(folding_history[end])
+	end
+end
+
+# ╔═╡ 91a8c30b-ebe5-4a0c-bf72-0a232aa9fd5b
+function write_grid_presentation_to_file(file_name, (fold_type, position), before, after)
+	function make_grid_representation(grid)
+		chars = map(n -> n == true ? "⬜" : "⬛", grid)
+		rs, _ = size(grid)
+
+		join.([chars[r, :] for r in 1:rs]) .* "\n"
+	end
+		
+
+	total_rows, total_cols = fold_type == FoldVertical ? 
+		(size(before)[1], position) :
+		(position, size(before)[2])
+	fold_dimension = fold_type == FoldVertical ? 2 : 1
+	lhs_grid = before[1:total_rows, 1:total_cols]
+	rhs_grid = reverse(before, dims=fold_dimension)[1:total_rows, 1:total_cols]
+
+	lines = make_grid_representation.([lhs_grid, rhs_grid, after])
+	bl = "$(repeat("-",50))\n"
+	lines = vcat(lines[1], [bl], lines[2], [bl], lines[3])
+
+	open(file_name, "w") do io
+		println(io, lines...)
+	end
+end
+
+# ╔═╡ 43995d28-ca14-4ce4-bc58-cf06b743c770
+vcat([1,2], [3,4])
+
+# ╔═╡ 6337c09e-e1e1-4815-b28c-48e39091c050
+"adf" * "er"
+
+# ╔═╡ 8f108c10-8f10-41b7-9f3b-dc94af341f2f
+repeat("-",50)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 ColorVectorSpace = "c3611d14-8923-5661-9e6a-0046d554d3a4"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
-DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
 ImageShow = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -223,11 +203,10 @@ Reel = "71555da5-176e-5e73-a222-aebc6c6e4f2f"
 [compat]
 ColorVectorSpace = "~0.9.8"
 Colors = "~0.12.8"
-DataStructures = "~0.18.10"
 ImageIO = "~0.5.9"
 ImageShow = "~0.3.3"
-Plots = "~1.25.1"
-PlutoUI = "~0.7.21"
+Plots = "~1.25.2"
+PlutoUI = "~0.7.22"
 Reel = "~1.3.2"
 """
 
@@ -286,10 +265,10 @@ uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 version = "1.11.2"
 
 [[ChangesOfVariables]]
-deps = ["LinearAlgebra", "Test"]
-git-tree-sha1 = "9a1d594397670492219635b35a3d830b04730d62"
+deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
+git-tree-sha1 = "bf98fa45a0a4cee295de98d4c1462be26345b9a1"
 uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
-version = "0.1.1"
+version = "0.1.2"
 
 [[ColorSchemes]]
 deps = ["ColorTypes", "Colors", "FixedPointNumbers", "Random"]
@@ -338,9 +317,9 @@ version = "1.9.0"
 
 [[DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "7d9d316f04214f7efdbb6398d545446e246eff02"
+git-tree-sha1 = "3daef5523dd2e769dad2365274f760ff5f282c7d"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.18.10"
+version = "0.18.11"
 
 [[DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -870,15 +849,15 @@ version = "1.0.15"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun"]
-git-tree-sha1 = "3e7e9415f917db410dcc0a6b2b55711df434522c"
+git-tree-sha1 = "65ebc27d8c00c84276f14aaf4ff63cbe12016c70"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.25.1"
+version = "1.25.2"
 
 [[PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "b68904528fd538f1cb6a3fbc44d2abdc498f9e8e"
+git-tree-sha1 = "565564f615ba8c4e4f40f5d29784aa50a8f7bbaf"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.21"
+version = "0.7.22"
 
 [[Preferences]]
 deps = ["TOML"]
@@ -1278,25 +1257,23 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═acf93a06-f267-492d-a7e4-b7ef4d7d76e6
-# ╠═9b4b3db2-cafa-419c-bd4c-3a873d00ffc9
-# ╠═4204f48a-cd9a-4354-85d6-72e8fec2609f
-# ╠═f8da1464-6467-4985-a20b-a7f939c5c0ef
-# ╟─2c8a36c2-5a53-11ec-0d8c-8fa39662cc35
-# ╠═c0665ceb-363e-48a6-b8cc-ece7deed4e1f
-# ╠═f6a5bb96-1f2f-475b-bdb9-c8f410b87a73
-# ╟─2d26e9d7-3c9f-4104-ac53-e4ed10f17be9
-# ╠═bf0fed46-6b19-47c2-985b-d729f82ac106
-# ╠═b4b78f2f-e612-49ef-8dcd-df035a992601
-# ╟─f0cb7c53-c228-430f-ac99-6306d81ef982
-# ╠═d544856c-bb85-453d-b601-583fdc6ce312
-# ╠═5035ab78-1677-460b-b582-d31616ed9fd2
-# ╟─c4b2c1a6-2d87-4a8e-9733-6464f50fed2d
-# ╟─04c7cffa-2b5c-4bda-a9e7-5213b202f4cf
-# ╠═a37cdf7f-8532-409b-9483-103336bf9d4f
-# ╠═fbbb1b9a-bf8a-4509-bf92-8719619f3936
-# ╠═a9842894-10a0-4088-9066-450692d736e4
-# ╟─ee458c52-f584-4291-a35d-10dcc7310b92
-# ╠═7c9f3478-551c-43d7-b4a7-d8f8873acd95
+# ╠═e5adc7b4-a132-45ea-9383-c400de711cff
+# ╟─d0aec327-eca8-4985-a014-104268fa98ae
+# ╟─c64cd69d-3fb1-478e-92ec-293d38d9e628
+# ╟─c0c69e83-308d-4b7e-850a-bf7f0db20212
+# ╠═e499ef4d-200f-4a8a-a201-a95ff79ccdac
+# ╠═275b7b30-b104-4ebe-9261-dfcfdec92c6c
+# ╠═9f2972eb-fc69-41a2-af55-9afc696ca092
+# ╟─7a21ecf0-5bd8-11ec-036f-690dbaf69de3
+# ╠═8367f567-fb4a-4b21-9f41-879afe7ddb3e
+# ╟─e2a7cae5-c4e7-4a35-881c-a1c2d2f290b9
+# ╠═ddff87e8-2b5d-4649-b677-35588d080039
+# ╠═135f9ade-55d3-4e21-877d-9156dc28d4f1
+# ╠═91a8c30b-ebe5-4a0c-bf72-0a232aa9fd5b
+# ╟─184104eb-1a42-4592-b0ff-f5acf1bccaf4
+# ╟─775b92e9-7677-4b07-b19a-17e940af3adc
+# ╠═43995d28-ca14-4ce4-bc58-cf06b743c770
+# ╠═6337c09e-e1e1-4815-b28c-48e39091c050
+# ╠═8f108c10-8f10-41b7-9f3b-dc94af341f2f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
