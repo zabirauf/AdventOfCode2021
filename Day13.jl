@@ -180,15 +180,6 @@ function write_grid_presentation_to_file(file_name, (fold_type, position), befor
 	end
 end
 
-# ╔═╡ 43995d28-ca14-4ce4-bc58-cf06b743c770
-vcat([1,2], [3,4])
-
-# ╔═╡ 6337c09e-e1e1-4815-b28c-48e39091c050
-"adf" * "er"
-
-# ╔═╡ 8f108c10-8f10-41b7-9f3b-dc94af341f2f
-repeat("-",50)
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -1259,8 +1250,8 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╠═e5adc7b4-a132-45ea-9383-c400de711cff
 # ╟─d0aec327-eca8-4985-a014-104268fa98ae
-# ╟─c64cd69d-3fb1-478e-92ec-293d38d9e628
-# ╟─c0c69e83-308d-4b7e-850a-bf7f0db20212
+# ╠═c64cd69d-3fb1-478e-92ec-293d38d9e628
+# ╠═c0c69e83-308d-4b7e-850a-bf7f0db20212
 # ╠═e499ef4d-200f-4a8a-a201-a95ff79ccdac
 # ╠═275b7b30-b104-4ebe-9261-dfcfdec92c6c
 # ╠═9f2972eb-fc69-41a2-af55-9afc696ca092
@@ -1269,11 +1260,8 @@ version = "0.9.1+5"
 # ╟─e2a7cae5-c4e7-4a35-881c-a1c2d2f290b9
 # ╠═ddff87e8-2b5d-4649-b677-35588d080039
 # ╠═135f9ade-55d3-4e21-877d-9156dc28d4f1
-# ╠═91a8c30b-ebe5-4a0c-bf72-0a232aa9fd5b
+# ╟─91a8c30b-ebe5-4a0c-bf72-0a232aa9fd5b
 # ╟─184104eb-1a42-4592-b0ff-f5acf1bccaf4
 # ╟─775b92e9-7677-4b07-b19a-17e940af3adc
-# ╠═43995d28-ca14-4ce4-bc58-cf06b743c770
-# ╠═6337c09e-e1e1-4815-b28c-48e39091c050
-# ╠═8f108c10-8f10-41b7-9f3b-dc94af341f2f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
