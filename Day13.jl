@@ -83,6 +83,7 @@ function fold_paper(fold_type, position, grid)
 	total_rows, total_cols = fold_type == FoldVertical ? 
 		(size(grid)[1], position) :
 		(position, size(grid)[2])
+
 	fold_dimension = fold_type == FoldVertical ? 2 : 1
 
 	lhs_grid = grid[1:total_rows, 1:total_cols]
@@ -134,23 +135,18 @@ md"Create simulation GIF? $(@bind create_gif CheckBox())"
 with_terminal() do
 	open("./Day13/prob_input.txt") do io
 		dot_coordinates, fold_instructions = parse_file(io)
-		total_rows, total_cols = maximum(x -> x[2], dot_coordinates), maximum(x -> x[1], dot_coordinates)
+		first_horiz_fold = filter(f -> f[1] == FoldHorizontal, fold_instructions)[1][2]
+		first_vert_fold = filter(f -> f[1] == FoldVertical, fold_instructions)[1][2]
+		total_rows, total_cols = first_horiz_fold*2+1, first_vert_fold*2+1
 
 		# Create initial grid
 		grid = zeros(Bool, total_rows, total_cols)
 		grid[map(x -> CartesianIndex(x[2], x[1]), dot_coordinates)] .= true
 
-		folding_history = []
-		fold_num = 1
-		function on_fold(fold_props, before, after)
-			push!(folding_history, after)
-			#write_grid_presentation_to_file("./Day13/intermediate_$(fold_num).txt", fold_props, before, after)
-			fold_num += 1
-		end
-		@time _, final_grid = fold_grid(grid, fold_instructions, on_fold)
+		@time _, final_grid = fold_grid(grid, fold_instructions)
 		
 		create_gif && create_folding_gif(folding_history, total_rows, total_cols)
-		create_code_img.(folding_history[end])
+		create_code_img(final_grid)
 	end
 end
 
@@ -1250,8 +1246,8 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╠═e5adc7b4-a132-45ea-9383-c400de711cff
 # ╟─d0aec327-eca8-4985-a014-104268fa98ae
-# ╠═c64cd69d-3fb1-478e-92ec-293d38d9e628
-# ╠═c0c69e83-308d-4b7e-850a-bf7f0db20212
+# ╟─c64cd69d-3fb1-478e-92ec-293d38d9e628
+# ╟─c0c69e83-308d-4b7e-850a-bf7f0db20212
 # ╠═e499ef4d-200f-4a8a-a201-a95ff79ccdac
 # ╠═275b7b30-b104-4ebe-9261-dfcfdec92c6c
 # ╠═9f2972eb-fc69-41a2-af55-9afc696ca092
